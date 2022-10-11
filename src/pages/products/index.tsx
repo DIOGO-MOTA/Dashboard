@@ -45,11 +45,11 @@ export default function UserList() {
           <Flex mb="8" justify="space-between" align="center" >
 
             <Heading size="lg" fontWeight="normal">
-              Clientes
+              Produtos
               {!isLoading && isFetching && <Spinner size="sm" color="gray.500" ml="4" />}
             </Heading>
 
-            <NextLink href="users/create" passHref>
+            <NextLink href="products/createProduct" passHref>
               <Button
                 as="a"
                 size="sm"

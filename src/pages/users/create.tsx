@@ -1,19 +1,38 @@
-import { Box, Divider, Flex, Heading, VStack, SimpleGrid, HStack, Button } from "@chakra-ui/react";
+import {
+  Box,
+  Divider,
+  Flex,
+  Heading,
+  VStack,
+  SimpleGrid,
+  HStack,
+  Button,
+} from "@chakra-ui/react";
 import Link from "next/link";
-import { SubmitHandler, useForm } from 'react-hook-form';
-import * as yup from 'yup';
-import { yupResolver } from '@hookform/resolvers/yup';
-import { useMutation } from 'react-query'
+import { SubmitHandler, useForm } from "react-hook-form";
+import * as yup from "yup";
+import { yupResolver } from "@hookform/resolvers/yup";
+import { useMutation } from "react-query";
 import { useRouter } from "next/router";
 
 import { Header } from "../../components/Header";
 import { Sidebar } from "../../components/Sidebar";
 import { Input } from "../../components/Form/Input";
+import { useCallback, useEffect, useState } from "react";
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+} from "firebase/firestore";
+import { db } from "../../services/firebase";
+import { GetServerSideProps } from "next";
 import { api } from "../../services/api";
-import { queryClient } from "../../services/queryClient";
 
 
-type CreateUserFormData = {
+type CreateClientFormData = {
   name: string;
   email: string;
   password: string;
@@ -21,44 +40,56 @@ type CreateUserFormData = {
 };
 
 
+
 const createUserFormSchma = yup.object().shape({
-  name: yup.string().required('Nome obrigatório'),
-  email: yup.string().required('E-mail obrigatório').email('E-mail inválido'),
-  password: yup.string().required('Senha obrigatória').min(6, 'No mínimo 6 caracteres'),
-  password_confirmation: yup.string().oneOf([
-    null, yup.ref('password')
-  ], 'As senhas precisam ser iguais')
-})
+  //name: yup.string().required("Nome obrigatório"),
+  /* email: yup.string().required("E-mail obrigatório").email("E-mail inválido"),
+  password: yup
+    .string()
+    .required("Senha obrigatória")
+    .min(6, "No mínimo 6 caracteres"),
+  password_confirmation: yup
+    .string()
+    .oneOf([null, yup.ref("password")], "As senhas precisam ser iguais"), */
+});
+
+export default function CreateUser({customer}) {
+  const router = useRouter();
+  const [users, setUsers] = useState([]);
+  const usersCollectionRef = collection(db, "customer");
 
 
-export default function CreateUser() {
-  const router = useRouter()
+  console.log(customer.map((user) => user.name))
 
-  const createUser = useMutation(async (user: CreateUserFormData) => {
-    const response = await api.post('users', {
-      user: {
-        ...user,
-        created_at: new Date(),
-      }
-    },)
+useEffect(() => {
+  const getUsers = async () => {
+    const data = await getDocs(usersCollectionRef);
+    setUsers(data.docs.map((doc) => ({ ...doc.data(), id: doc.id })));
+  };
 
-    return response.data.user;
-  }, {
-    onSuccess: () => {
-      queryClient.invalidateQueries('users')
+  getUsers();
+}, []);
+
+  async function handleCreateUser(client: CreateClientFormData){
+    try {
+      await api.post("/api/createCustomer", {
+        name: client.name,
+        age: client.email,
+
+      });
+    } catch (error) {
+      console.log("Erro ao enviar mensagem");
+    } finally {
+      console.log("Mensagem enviada com sucesso!");
     }
-  })
+
+  };
+
   const { register, handleSubmit, formState } = useForm({
-    resolver: yupResolver(createUserFormSchma)
+    resolver: yupResolver(createUserFormSchma),
   });
 
-  const { errors } = formState
-
-  const handleCreateUser: SubmitHandler<CreateUserFormData> = async (value) => {
-    await createUser.mutateAsync(value);
-
-    router.push('/users')
-  }
+  const { errors } = formState;
 
   return (
     <Box>
@@ -75,7 +106,9 @@ export default function CreateUser() {
           p={["6", "8"]}
           onSubmit={handleSubmit(handleCreateUser)}
         >
-          <Heading size="lg" fontWeight="normal">Criar usuário</Heading>
+          <Heading size="lg" fontWeight="normal">
+            Adicionar Cliente
+          </Heading>
 
           <Divider my="6" borderColor="gray.700" />
 
@@ -85,14 +118,14 @@ export default function CreateUser() {
                 name="name"
                 label="Nome completo"
                 error={errors.name}
-                {...register('name')}
+                {...register("name")}
               />
               <Input
-                name="email"
-                type="email"
-                label="E-mail"
+                name="age"
+                type="age"
+                label="age"
                 error={errors.email}
-                {...register('email')}
+                {...register("email")}
               />
             </SimpleGrid>
 
@@ -102,8 +135,7 @@ export default function CreateUser() {
                 type="Password"
                 label="Senha"
                 error={errors.password}
-                {...register('password')}
-
+                {...register("password")}
               />
 
               <Input
@@ -111,7 +143,7 @@ export default function CreateUser() {
                 type="Password"
                 label="Confirmação de senha"
                 error={errors.password_confirmation}
-                {...register('password_confirmation')}
+                {...register("password_confirmation")}
               />
             </SimpleGrid>
           </VStack>
@@ -119,22 +151,33 @@ export default function CreateUser() {
           <Flex mt="8" justify="flex-end">
             <HStack spacing="4">
               <Link href="/users" passHref>
-                <Button as="a" colorScheme="whiteAlpha">Cancelar</Button>
+                <Button as="a" colorScheme="whiteAlpha">
+                  Cancelar
+                </Button>
               </Link>
               <Button
                 type="submit"
-                colorScheme="pink"
+                bg="yellow.500"
                 isLoading={formState.isSubmitting}
               >
                 Salvar
-              </Button >
+              </Button>
             </HStack>
           </Flex>
-
         </Box>
       </Flex>
-
-
     </Box>
-  )
+  );
 }
+
+export const getServerSideProps: GetServerSideProps = async () => {
+  const usersCollectionRef = collection(db, "customer");
+    const data = await getDocs(usersCollectionRef);
+    const client = (data.docs.map((doc) => ({ ...doc.data(), id: doc.id })));
+
+  return {
+    props: {
+      customer: client,
+    },
+  };
+};
